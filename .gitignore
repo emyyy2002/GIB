@@ -3,10 +3,10 @@ __pycache__/
 *.py[cod]
 
 # Database
-db.sqlite3
+# db.sqlite3
 
 # Environment
-.env
+# .env
 
 # Django
 *.log

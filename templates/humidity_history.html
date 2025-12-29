@@ -1,0 +1,421 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Historique Humidité</title>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Adaptateur dates pour l’axe temps -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <!-- Plugin Zoom -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+
+    <style>
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            background:#eef3fb;
+            margin:0;
+            padding:24px 16px 60px;
+            color:#111827;
+        }
+        .page {
+            max-width: 1000px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        h1 {
+            margin:0 0 8px;
+            font-size:24px;
+        }
+
+        .subtitle {
+            font-size:12px;
+            color:#6b7280;
+        }
+
+        /* ICON DOWNLOAD */
+        .download-icon {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background:white;
+            box-shadow:0 6px 18px rgba(15,23,42,0.25);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            text-decoration:none;
+            color:#1e40af;
+            font-size:20px;
+            transition:0.18s;
+        }
+        .download-icon:hover {
+            color:#1d4ed8;
+            transform: translateY(-2px) scale(1.05);
+        }
+
+        /* FILTER CARD */
+        .filter-card {
+            background:white;
+            border-radius:14px;
+            box-shadow:0 8px 25px rgba(15,23,42,0.12);
+            padding:16px 22px;
+            margin:20px auto 24px;
+            max-width: 650px;
+        }
+
+        form.filter {
+            display:flex;
+            justify-content:center;
+            gap:12px;
+            flex-wrap:wrap;
+            align-items:center;
+            font-size:13px;
+        }
+
+        .filter label {
+            display:flex;
+            flex-direction:column;
+            gap:4px;
+            font-size:12px;
+            color:#4b5563;
+        }
+
+        input[type="date"] {
+            padding:6px 8px;
+            border-radius:6px;
+            border:1px solid #cbd5e1;
+            font-size:13px;
+            min-width:160px;
+            background:#f9fafb;
+        }
+
+        button[type="submit"] {
+            padding:8px 14px;
+            border-radius:8px;
+            border:none;
+            background:#0f766e;
+            color:white;
+            font-size:13px;
+            cursor:pointer;
+            margin-top:4px;
+        }
+        button[type="submit"]:hover {
+            background:#115e59;
+        }
+
+        /* CARD GRAPH */
+        .card {
+            background:white;
+            border-radius:14px;
+            padding:18px 20px 22px;
+            box-shadow:0 8px 25px rgba(15,23,42,0.12);
+        }
+        .card h2 {
+            margin:0 0 8px;
+            font-size:16px;
+            color:#0b4d9c;
+        }
+        .card-sub {
+            font-size:12px;
+            color:#6b7280;
+            margin-bottom:8px;
+        }
+        .card-zoom-hint {
+            font-size:11px;
+            color:#9ca3af;
+            margin-bottom:10px;
+        }
+
+        canvas {
+            max-height:370px;
+        }
+
+        /* RESET ZOOM */
+        .btn-reset-zoom {
+            padding:4px 10px;
+            font-size:11px;
+            border-radius:999px;
+            background:#e5e7eb;
+            border:none;
+            margin-left:8px;
+            cursor:pointer;
+            color:#374151;
+        }
+        .btn-reset-zoom:hover {
+            background:#d1d5db;
+        }
+
+        /* BTN RETURN */
+        .btn-return {
+            display:block;
+            width:max-content;
+            margin:35px auto 0;
+            padding:10px 18px;
+            background:#2563eb;
+            border-radius:8px;
+            color:white;
+            text-decoration:none;
+            font-size:14px;
+            transition:0.2s;
+        }
+        .btn-return:hover {
+            background:#1d4ed8;
+        }
+
+        /* TOGGLE TEMPÉRATURE */
+        .series-toggle {
+            font-size:13px;
+            color:#374151;
+            margin-bottom:8px;
+        }
+        .series-toggle label {
+            display:flex;
+            align-items:center;
+            gap:6px;
+            cursor:pointer;
+        }
+
+        /* DÉTAIL POINT */
+        .point-details {
+            margin-top:14px;
+            padding:10px 14px;
+            border-radius:10px;
+            background:#f3f4ff;
+            font-size:13px;
+            color:#111827;
+        }
+        .point-details strong {
+            color:#1d4ed8;
+        }
+    </style>
+</head>
+
+<body>
+<div class="page">
+
+    <!-- Icône Download -->
+    <a class="download-icon"
+       href="{% url 'humidity_history_csv' %}?start_date={{ start_date }}&end_date={{ end_date }}">
+        ⬇
+    </a>
+
+    <!-- TITRE -->
+    <h1>Historique de l'humidité</h1>
+    <div class="subtitle">Évolution de l'humidité dans le temps.</div>
+
+    <!-- Filter -->
+    <div class="filter-card">
+        <form method="get" class="filter">
+            <label>
+                Date de début
+                <input type="date" name="start_date" value="{{ start_date }}">
+            </label>
+
+            <label>
+                Date de fin
+                <input type="date" name="end_date" value="{{ end_date }}">
+            </label>
+
+            <button type="submit">Filtrer</button>
+        </form>
+    </div>
+
+    <!-- GRAPH -->
+    <div class="card">
+        <h2>Évolution de l'humidité (%)</h2>
+
+        <div class="card-sub">
+            {% if start_date or end_date %}
+                Période :
+                {% if start_date %}du <strong>{{ start_date }}</strong>{% endif %}
+                {% if end_date %} au <strong>{{ end_date }}</strong>{% endif %}
+            {% else %}
+                Toutes les mesures affichées.
+            {% endif %}
+        </div>
+
+        <!-- 🆕 Option "Afficher aussi la température" -->
+        <div class="series-toggle">
+            <label>
+                <input type="checkbox" id="toggleTemp">
+                Afficher aussi la température
+            </label>
+        </div>
+
+        <div class="card-zoom-hint">
+            Zoom : molette / pincement / glisser pour sélectionner une zone.
+            <button id="resetZoomBtn" class="btn-reset-zoom">Réinitialiser le zoom</button>
+        </div>
+
+        <canvas id="humChart"></canvas>
+
+        <!-- Zone de détail au clic -->
+        <div id="pointDetails" class="point-details">
+            Cliquez sur un point du graphique pour voir le détail ici.
+        </div>
+    </div>
+
+    <!-- Bouton Retour -->
+    <a href="{% url 'dashboard' %}" class="btn-return">⬅ Retour</a>
+
+</div>
+
+<script>
+    // EX: rawLabels = ["2025-12-09T20:31:06.057180Z", ...]
+    const rawLabels = {{ labels|safe }};
+    const hums      = {{ hums|safe }};
+    const temps     = {{ temps|safe }};   // 🔥 liste des températures envoyée par Django
+
+    // On convertit en {x: Date, y: valeur}
+    const humPoints = rawLabels.map((ts, i) => ({
+        x: new Date(ts),
+        y: hums[i]
+    }));
+    const tempPoints = rawLabels.map((ts, i) => ({
+        x: new Date(ts),
+        y: temps[i]
+    }));
+
+    // Période sélectionnée (format "YYYY-MM-DD")
+    const startDateStr = "{{ start_date|default_if_none:'' }}";
+    const endDateStr   = "{{ end_date|default_if_none:'' }}";
+
+    const xMin = startDateStr ? new Date(startDateStr + "T00:00:00") : undefined;
+    const xMax = endDateStr   ? new Date(endDateStr   + "T23:59:59") : undefined;
+
+    const ctx = document.getElementById("humChart").getContext("2d");
+
+    // Jeux de données
+    const datasetHum = {
+        label: "Humidité (%)",
+        data: humPoints,
+        borderColor: "#3b82f6",
+        backgroundColor: "rgba(59, 130, 246, 0.15)",
+        tension: 0.25,
+        borderWidth: 2,
+        pointRadius: 3
+    };
+
+    const datasetTemp = {
+        label: "Température (°C)",
+        data: tempPoints,
+        borderColor: "#ef4444",
+        backgroundColor: "rgba(239, 68, 68, 0.15)",
+        tension: 0.25,
+        borderWidth: 2,
+        pointRadius: 3
+    };
+
+    const humChart = new Chart(ctx, {
+        type: "line",
+        data: {
+            datasets: [datasetHum]   // par défaut : seulement humidité
+        },
+        options: {
+            parsing: false,
+            responsive: true,
+            scales: {
+                x: {
+                    type: "time",
+                    time: {
+                        unit: "day",
+                        stepSize: 1
+                    },
+                    min: xMin,
+                    max: xMax,
+                    title: { display: true, text: "Date (YYYY/MM/DD)" },
+                    ticks: {
+                        autoSkip: false,
+                        callback: (value) => {
+                            const d = new Date(value);
+                            const y = d.getFullYear();
+                            const m = String(d.getMonth() + 1).padStart(2, "0");
+                            const day = String(d.getDate()).padStart(2, "0");
+                            return `${y}/${m}/${day}`;
+                        }
+                    }
+                },
+                y: {
+                    title: { display: true, text: "Valeur" }  // car on peut afficher 2 séries
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        title: (items) => {
+                            if (!items.length) return "";
+                            const d = items[0].parsed.x;
+                            return new Date(d).toLocaleString("fr-FR");
+                        }
+                    }
+                },
+                zoom: {
+                    zoom: {
+                        wheel: { enabled: true },
+                        pinch: { enabled: true },
+                        drag: {
+                            enabled: true,
+                            borderColor: "rgba(37,99,235,0.6)",
+                            backgroundColor: "rgba(191,219,254,0.3)"
+                        },
+                        mode: "x"
+                    },
+                    pan: {
+                        enabled: true,
+                        mode: "x"
+                    }
+                }
+            },
+            // clic sur un point → détail
+            onClick: (evt) => {
+                const pointsAtClick = humChart.getElementsAtEventForMode(
+                    evt,
+                    'nearest',
+                    { intersect: true },
+                    true
+                );
+                if (!pointsAtClick.length) return;
+
+                const first = pointsAtClick[0];
+                const dataset = humChart.data.datasets[first.datasetIndex];
+                const pointData = dataset.data[first.index];
+
+                const dateFull = pointData.x.toLocaleString('fr-FR');
+                const dateOnly = pointData.x.toISOString().slice(0,10).replace(/-/g,'/');
+                const value    = pointData.y;
+
+                const detailsDiv = document.getElementById('pointDetails');
+                detailsDiv.innerHTML = `
+                    <strong>Détail de la mesure</strong><br>
+                    Série : <strong>${dataset.label}</strong><br>
+                    Date : <strong>${dateOnly}</strong><br>
+                    Date &amp; heure complètes : ${dateFull}<br>
+                    Valeur : <strong>${value}</strong>
+                `;
+            }
+        }
+    });
+
+    // Checkbox "Afficher aussi la température"
+    const toggleTemp = document.getElementById("toggleTemp");
+    toggleTemp.addEventListener("change", (e) => {
+        humChart.data.datasets = [datasetHum];
+        if (e.target.checked) {
+            humChart.data.datasets.push(datasetTemp);
+        }
+        humChart.update();
+    });
+
+    document.getElementById("resetZoomBtn").addEventListener("click", function () {
+        humChart.resetZoom();
+    });
+</script>
+
+</body>
+</html>

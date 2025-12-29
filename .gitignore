@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Database
+db.sqlite3
+
+# Environment
+.env
+
+# Django
+*.log
+local_settings.py# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+
+# Virtual env
+.venv/
+env/
+venv/
+
+# Django
+*.log
+staticfiles/
+media/
+
+# IDE
+.vscode/
+.idea/
+test_twilio.py
